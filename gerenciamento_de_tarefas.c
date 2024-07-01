@@ -120,6 +120,15 @@ void reinicializarFila(LISTA *l)
     l->inicio = NULL;
 }
 
+void carregarLista(LISTA *lista, FILE *arq_tarefas)
+{
+    REGISTRO reg;
+    while (fread(&reg, sizeof(REGISTRO), 1, arq_tarefas) == 1)
+    {
+        insere(lista, reg, tamanho(lista));
+    }
+}
+
 void menu(LISTA *lista, REGISTRO palavra, FILE *historico);
 bool modificaElemento(LISTA *lista, REGISTRO reg, int pos, FILE *historico);
 bool modifica(LISTA *lista, REGISTRO palavra, int aux_pos, FILE *historico);
@@ -143,15 +152,40 @@ int main()
     REGISTRO palavra;
     FILE *arq_tarefas, *arq_historico;
 
-    arq_tarefas = fopen("tarefas.bin", "ab+"); // abre um arquivo para adicao de dados, leitura e escrita, caso o arquivo nao existir, cria ele
+    arq_tarefas = fopen("tarefas.bin", "ab+");
     arq_historico = fopen("historico.txt", "w");
+
+    if (arq_tarefas == NULL || arq_historico == NULL)
+    {
+        printf("Erro ao abrir o arquivo de tarefas.\n");
+        return 1;
+    }
+
+    carregarLista(&lista, arq_tarefas); // Carregar a lista do arquivo
 
     menu(&lista, palavra, arq_historico);
 
-    fwrite(&lista, sizeof(lista), 1, arq_tarefas);
+    // Reabrir o arquivo em modo "wb" para sobrescrever com a lista atualizada
+    fclose(arq_tarefas);
+    arq_tarefas = fopen("tarefas.bin", "wb");
+    if (arq_tarefas == NULL)
+    {
+        printf("Erro ao abrir o arquivo de tarefas.\n");
+        fclose(arq_historico);
+        return 1;
+    }
+
+    // Salvar a lista atualizada no arquivo
+    PONT p = lista.inicio;
+    while (p != NULL)
+    {
+        fwrite(&p->reg, sizeof(REGISTRO), 1, arq_tarefas);
+        p = p->prox;
+    }
 
     reinicializarFila(&lista);
     fclose(arq_tarefas);
+    fclose(arq_historico);
     return 0;
 }
 
@@ -207,7 +241,6 @@ void menu(LISTA *lista, REGISTRO palavra, FILE *historico)
                 printf(" 1 - Escrever tarefas\n 2 - Modificar alguma tarefa \n 3 - Excluir uma tarefa\n 4 - Imprimir a Lista\n 0 - Sair\n");
                 break;
             }
-
             modifica(lista, palavra, aux_pos, historico);
         }
         if (strcmp((char *)palavra.chave, "3") == 0)
