@@ -1,0 +1,5 @@
+Tarefa escrita: "Bracks"
+Tarefa escrita: "tocar bateria"
+Tarefa escrita: "tmar cafe"
+Tarefa modificada, de "testando essa porra", para "testei ja"
+Tarefa excluida: "tmar cafe"

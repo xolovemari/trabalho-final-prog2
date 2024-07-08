@@ -269,3 +269,28 @@ bool modifica(LISTA *lista, REGISTRO palavra, int aux_pos, FILE *historico) // f
     modificaElemento(lista, palavra, aux_pos - 1, historico); // chama a funcao modificaElemento
     menu(lista, palavra, historico);                          // volta ao menu depois
 }
+
+void ordenaPrazos(LISTA *lista)
+{
+    PONT i, p, posMenor;
+    REGISTRO aux;
+
+    for (i = lista->inicio; i != NULL && i->prox != NULL; i = i->prox) // Percorre a lista do início ao penúltimo elemento
+    {
+        posMenor = i; // Assume que o menor elemento inicialmente é o próprio i
+
+        for (p = i->prox; p != NULL; p = p->prox)
+        {
+
+            if (strcmp(p->reg.chave, posMenor->reg.chave) < 0) // Compara as chaves dos registros para determinar o menor
+                posMenor = p;                                  // Atualiza posMenor se encontrar um registro menor
+        }
+
+        if (posMenor != i) // Se posMenor for diferente de i, troca os registros entre i e posMenor
+        {
+            aux = i->reg;
+            i->reg = posMenor->reg;
+            posMenor->reg = aux;
+        }
+    }
+}
