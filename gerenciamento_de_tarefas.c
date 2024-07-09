@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define true 1
 #define false 0
@@ -11,7 +12,7 @@ typedef char TIPOCHAVE[MAX]; // tipo chave = string
 
 typedef struct
 {
-    TIPOCHAVE chave[MAX];
+    TIPOCHAVE chave;
 } REGISTRO;
 
 typedef struct aux
@@ -46,12 +47,17 @@ int tamanho(LISTA *l) // funcao padrao da implementacao de lista, percorre todos
 
 void exibirLista(LISTA *l)
 {
+    if (tamanho(l) == 0)
+    {
+        printf("Lista vazia\n");
+    }
+
     PONT end = l->inicio;
     printf("Lista:\n");
     int i = 1;
     while (end != NULL)
     {
-        printf("  %i - %s \n", i, end->reg.chave); // exibe a lista com i (numero da tarefa) - s (nome da tarefa)
+        printf("  %d - %s \n", i, end->reg.chave); // exibe a lista com i (numero da tarefa) - s (nome da tarefa)
         i++;
         end = end->prox;
     }
@@ -63,6 +69,8 @@ bool insere(LISTA *l, REGISTRO reg, int pos)
     if (pos < 0 || pos > tamanho(l)) // verifica se a posicao e valida para inserir o elemento
         return false;
     ELEMENTO *novo = (ELEMENTO *)malloc(sizeof(ELEMENTO)); // aloca memoria para o novo elemento
+    if (novo == NULL)
+        return false;
     novo->reg = reg;
     int i;
     ELEMENTO *p;
@@ -84,7 +92,7 @@ bool insere(LISTA *l, REGISTRO reg, int pos)
 
 bool exclui(LISTA *l, int pos, FILE *historico)
 {
-    if (pos <= 0 || pos > tamanho(l)) // verifica se a posicao e valida, se nao for retorna falso
+    if (pos < 1 || pos > tamanho(l)) // verifica se a posicao e valida, se nao for retorna falso
         return false;
     int i;
     ELEMENTO *p;
@@ -132,6 +140,8 @@ void carregarLista(LISTA *lista, FILE *arq_tarefas)
 void menu(LISTA *lista, REGISTRO palavra, FILE *historico);
 bool modificaElemento(LISTA *lista, REGISTRO reg, int pos, FILE *historico);
 bool modifica(LISTA *lista, REGISTRO palavra, int aux_pos, FILE *historico);
+void ordenaPrazos(LISTA *lista);
+void exibirTarefasPorPrazo(LISTA *lista, int prazo);
 
 int main()
 {
@@ -141,7 +151,7 @@ int main()
     FILE *arq_tarefas, *arq_historico;
 
     arq_tarefas = fopen("tarefas.bin", "ab+");
-    arq_historico = fopen("historico.txt", "w");
+    arq_historico = fopen("historico.txt", "a+");
 
     if (arq_tarefas == NULL || arq_historico == NULL)
     {
@@ -179,65 +189,101 @@ int main()
 bool modificaElemento(LISTA *lista, REGISTRO reg, int pos, FILE *historico) // funcao que possibilita o usuario mudar alguma tarefa (opcional, nao pedido no trabalho)
 {
     PONT p = lista->inicio;
-    if (pos > tamanho(lista) || pos < 1) // verifica se a o posicao do arquivo que deseja ser alterado eh valido
+    if (pos < 1 || pos > tamanho(lista)) // verifica se a o posicao do arquivo que deseja ser alterado eh valido
     {
         return false;
     }
 
-    for (int i = 0; i < pos; i++)
+    for (int i = 0; i < pos - 1 && p != NULL; i++) // itera o ponteiro ate a posicao do elemento
     {
-        p = p->prox; // itera o ponteiro ate a posicao do elemento
+        p = p->prox;
     }
 
+    if (p == NULL)
+        return false; // Verificação adicional
+
     fprintf(historico, "Tarefa modificada, de \"%s\", para \"%s\"\n", p->reg.chave, reg.chave); // imprime no arquivo de historico
-    strcpy((char *)p->reg.chave, (char *)reg.chave);                                            // troca a tarefa pela nova desejada
+    strcpy(p->reg.chave, reg.chave);                                                            // troca a tarefa pela nova desejada
     return true;
+}
+
+void opcoes()
+{
+    printf(" 1 - Escrever tarefas\n 2 - Modificar alguma tarefa \n 3 - Excluir uma tarefa\n 4 - Imprimir a Lista\n 5 - Exibir a tarefa dado um prazo\n 0 - Sair\n"); // opcoes da tarefa
+}
+
+bool ehDigito(char c)
+{
+    if (c >= '0' && c <= '9')
+    {
+        return true;
+    }
+    return false;
 }
 
 void menu(LISTA *lista, REGISTRO palavra, FILE *historico)
 {
-    int aux_pos;
-    printf(" 1 - Escrever tarefas\n 2 - Modificar alguma tarefa \n 3 - Excluir uma tarefa\n 4 - Imprimir a Lista\n 0 - Sair\n"); // opcoes da tarefa
-    while (true)                                                                                                                 // loop de opcoes (mostra as opcoes enquanto o usuario quiser)
+    int aux_pos, prazo;
+    opcoes();    // opcoes da tarefa
+    while (true) // loop de opcoes (mostra as opcoes enquanto o usuario quiser)
     {
-        scanf(" %[^\n]", palavra.chave);             // le todos os dados de entrada menos a linha nova (enter)
-        if (strcmp((char *)palavra.chave, "0") == 0) // se o usuario entrar com "0", ele sai do menu
+        scanf(" %[^\n]", palavra.chave);     // le todos os dados de entrada menos a linha nova (enter)
+        if (strcmp(palavra.chave, "0") == 0) // se o usuario entrar com "0", ele sai do menu
             break;
-        if (strcmp((char *)palavra.chave, "1") == 0) // se o usuario entrar com "1", ele entra no loop de escrever as tarefas
+        if (strcmp(palavra.chave, "1") == 0) // se o usuario entrar com "1", ele entra no loop de escrever as tarefas
         {
-            puts("Digite as tarefas que deseja escrever, 0 para voltar");
-            while (true) // loop de esrever as tarefas
+            puts("Digite respectivamente, o prazo (em dias) e o nome da(s) tarefa(s) que deseja registrar, 0 para voltar");
+            while (true) // loop de escrever as tarefas
             {
-                scanf(" %[^\n]", palavra.chave);             // le a tarefa a ser escrita, dada pelo usuario
-                if (strcmp((char *)palavra.chave, "0") == 0) // se a tarefa for igual a 0, volta para o menu
+                scanf(" %[^\n]", palavra.chave); // le a tarefa a ser escrita, dada pelo usuario
+
+                if (strcmp(palavra.chave, "0") == 0) // se a tarefa for igual a 0, volta para o menu
                 {
-                    printf(" 1 - Escrever tarefas\n 2 - Modificar alguma tarefa \n 3 - Excluir uma tarefa\n 4 - Imprimir a Lista\n 0 - Sair\n"); // opcoes do menu
+                    opcoes(); // opcoes do menu
                     break;
                 }
+
+                if (ehDigito(palavra.chave[0]) == 0)
+                {
+                    printf("Ordem de entrada errada\n");
+                    opcoes();
+                    break;
+                }
+
                 fprintf(historico, "Tarefa escrita: \"%s\"\n", palavra.chave); // coloca a tarefa escrita no historico
                 insere(lista, palavra, tamanho(lista));                        // insere a tarefa na lista
             }
         }
-        if (strcmp((char *)palavra.chave, "2") == 0) // se o usuario entrar com "2", entra na opcao de modificar algum elemento
+        if (strcmp(palavra.chave, "2") == 0) // se o usuario entrar com "2", entra na opcao de modificar algum elemento
         {
             puts("\nDe o numero do elemento deseja modificar, 0 para voltar");
+            ordenaPrazos(lista);
             exibirLista(lista); // imprime a lista para o usuario ter alguma referencia
             scanf("%d", &aux_pos);
             if (aux_pos == 0) // se a posicao do elemento dado for 0, volta para o menu
             {
-                printf(" 1 - Escrever tarefas\n 2 - Modificar alguma tarefa \n 3 - Excluir uma tarefa\n 4 - Imprimir a Lista\n 0 - Sair\n");
-                break;
+                opcoes();
+                continue;
             }
-            modifica(lista, palavra, aux_pos, historico); // funcao para modificar um elemento
+            if (modifica(lista, palavra, aux_pos, historico))
+            {
+                printf("Tarefa modificada com sucesso \n\n");
+            }
+            else
+            {
+                printf("Posição inválida\n");
+            }
+            opcoes();
         }
-        if (strcmp((char *)palavra.chave, "3") == 0) // se o usuario entrar com "3", entra na opcao de excluir as tarefas ja concluidas
+        if (strcmp(palavra.chave, "3") == 0) // se o usuario entrar com "3", entra na opcao de excluir as tarefas ja concluidas
         {
             printf("De o numero da tarefa concluida, 0 para voltar\n");
+            ordenaPrazos(lista);
             exibirLista(lista);
             scanf("%d", &aux_pos);
             if (aux_pos == 0) // se a entrada for "0", volta para o menu
             {
-                printf(" 1 - Escrever tarefas\n 2 - Modificar alguma tarefa \n 3 - Excluir uma tarefa\n 4 - Imprimir a Lista\n 0 - Sair\n");
+                opcoes();
                 continue;
             }
             if (exclui(lista, aux_pos, historico) == false) // chama a funcao exclui, se ele retornar false entra no if
@@ -247,17 +293,29 @@ void menu(LISTA *lista, REGISTRO palavra, FILE *historico)
             else
                 printf("Tarefa excluida com sucesso \n\n");
 
-            printf(" 1 - Escrever tarefas\n 2 - Modificar alguma tarefa\n 3 - Excluir uma tarefa\n 4 - Imprimir a Lista\n 0 - Sair\n");
+            opcoes();
         }
-        if (strcmp((char *)palavra.chave, "4") == 0) // se o usuario entrar com "4", imprime a lista de tarefas
+        if (strcmp(palavra.chave, "4") == 0) // se o usuario entrar com "4", imprime a lista de tarefas
         {
             if (tamanho(lista) != 0)
             {
+                ordenaPrazos(lista);
                 exibirLista(lista);
-                printf(" 1 - Escrever tarefas\n 2 - Modificar alguma tarefa \n 3 - Excluir uma tarefa\n 4 - Imprimir a Lista\n 0 - Sair\n");
+                opcoes();
             }
             else // se a lista for vazia imprime isso e "volta" ao menu
-                printf("Lista vazia\n\n  1 - Escrever tarefas\n 2 - Modificar alguma tarefa \n 3 - Excluir uma tarefa\n 4 - Imprimir a Lista\n 0 - Sair\n");
+                opcoes();
+        }
+        if (strcmp(palavra.chave, "5") == 0) // se o usuario entrar com "5", exibe tarefas de determinado prazo
+        {
+            ordenaPrazos(lista);
+            printf("De o prazo que voce quer procurar, 0 para voltar\n");
+            scanf("%d", &prazo);
+            if (prazo != 0)
+            {
+                exibirTarefasPorPrazo(lista, prazo);
+            }
+            opcoes();
         }
     }
 }
@@ -265,9 +323,8 @@ void menu(LISTA *lista, REGISTRO palavra, FILE *historico)
 bool modifica(LISTA *lista, REGISTRO palavra, int aux_pos, FILE *historico) // funcao de modificar um elemento da lista
 {
     puts("O que deseja inserir no lugar?");
-    scanf(" %[^\n]", palavra.chave);                          // pede ao usuario o que ele deseja substituir
-    modificaElemento(lista, palavra, aux_pos - 1, historico); // chama a funcao modificaElemento
-    menu(lista, palavra, historico);                          // volta ao menu depois
+    scanf(" %[^\n]", palavra.chave);                             // pede ao usuario o que ele deseja substituir
+    return modificaElemento(lista, palavra, aux_pos, historico); // chama a funcao modificaElemento
 }
 
 void ordenaPrazos(LISTA *lista)
@@ -281,7 +338,6 @@ void ordenaPrazos(LISTA *lista)
 
         for (p = i->prox; p != NULL; p = p->prox)
         {
-
             if (strcmp(p->reg.chave, posMenor->reg.chave) < 0) // Compara as chaves dos registros para determinar o menor
                 posMenor = p;                                  // Atualiza posMenor se encontrar um registro menor
         }
@@ -293,4 +349,29 @@ void ordenaPrazos(LISTA *lista)
             posMenor->reg = aux;
         }
     }
+}
+
+void exibirTarefasPorPrazo(LISTA *lista, int prazo)
+{
+    PONT p = lista->inicio;
+    bool encontrado = false;
+
+    printf("Tarefas com prazo de %d dias:\n", prazo);
+    while (p != NULL)
+    {
+        int tarefa_prazo;
+        sscanf(p->reg.chave, "%d", &tarefa_prazo); // extrai o prazo da string
+        if (tarefa_prazo == prazo)
+        {
+            printf("  %s\n", p->reg.chave);
+            encontrado = true;
+        }
+        p = p->prox;
+    }
+
+    if (!encontrado)
+    {
+        printf("Nenhuma tarefa encontrada com prazo de %d dias.\n", prazo);
+    }
+    printf("\n");
 }
