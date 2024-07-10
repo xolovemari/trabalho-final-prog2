@@ -327,6 +327,13 @@ bool modifica(LISTA *lista, REGISTRO palavra, int aux_pos, FILE *historico) // f
     return modificaElemento(lista, palavra, aux_pos, historico); // chama a funcao modificaElemento
 }
 
+int extrairPrazo(const char *tarefa)
+{
+    int prazo;
+    sscanf(tarefa, "%d", &prazo); // extrai o prazo da string
+    return prazo;
+}
+
 void ordenaPrazos(LISTA *lista)
 {
     PONT i, p, posMenor;
@@ -338,8 +345,8 @@ void ordenaPrazos(LISTA *lista)
 
         for (p = i->prox; p != NULL; p = p->prox)
         {
-            if (strcmp(p->reg.chave, posMenor->reg.chave) < 0) // Compara as chaves dos registros para determinar o menor
-                posMenor = p;                                  // Atualiza posMenor se encontrar um registro menor
+            if (extrairPrazo(p->reg.chave) < extrairPrazo(posMenor->reg.chave)) // Compara os prazos dos registros para determinar o menor
+                posMenor = p;                                                   // Atualiza posMenor se encontrar um registro com prazo menor
         }
 
         if (posMenor != i) // Se posMenor for diferente de i, troca os registros entre i e posMenor
