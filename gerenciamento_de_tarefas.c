@@ -382,20 +382,3 @@ void exibirTarefasPorPrazo(LISTA *lista, int prazo)
     }
     printf("\n");
 }
-
-void ordenaPrazos(LISTA *lista) {
-    PONT i, p, posMenor;
-    REGISTRO aux;
-
-    for (i = lista->inicio; i != NULL && i->prox != NULL; i = i->prox) {
-        posMenor = i;
-        for (p = i->prox; p != NULL; p = p->prox)
-            if (strcmp(p->reg.chave, posMenor->reg.chave) < 0)
-                posMenor = p;
-        if (posMenor != i) {
-            aux = i->reg;
-            i->reg = posMenor->reg;
-            posMenor->reg = aux;
-        }
-    } 
-}
